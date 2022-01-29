@@ -9,6 +9,8 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 
+import java.security.KeyStore;
+import java.security.PrivateKey;
 import java.security.Signature;
 
 public class CreateSignatureCallback extends BiometricPrompt.AuthenticationCallback {
@@ -39,7 +41,14 @@ public class CreateSignatureCallback extends BiometricPrompt.AuthenticationCallb
         super.onAuthenticationSucceeded(result);
 
         try {
-            BiometricPrompt.CryptoObject cryptoObject = result.getCryptoObject();
+            Signature signature = Signature.getInstance("SHA256withRSA");
+            KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+            keyStore.load(null);
+
+            PrivateKey privateKey = (PrivateKey) keyStore.getKey("biometric_key", null);
+            signature.initSign(privateKey);
+
+            BiometricPrompt.CryptoObject cryptoObject = new BiometricPrompt.CryptoObject(signature);
             Signature cryptoSignature = cryptoObject.getSignature();
             cryptoSignature.update(this.payload.getBytes());
             byte[] signed = cryptoSignature.sign();

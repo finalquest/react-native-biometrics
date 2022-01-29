@@ -95,14 +95,19 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 deleteBiometricKey();
                 KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore");
-                KeyGenParameterSpec keyGenParameterSpec = new KeyGenParameterSpec.Builder(biometricKeyAlias, KeyProperties.PURPOSE_SIGN)
+                KeyGenParameterSpec.Builder keyGenParameterSpecBuilder = new KeyGenParameterSpec.Builder(biometricKeyAlias, KeyProperties.PURPOSE_SIGN)
                         .setDigests(KeyProperties.DIGEST_SHA256)
                         .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
                         .setAlgorithmParameterSpec(new RSAKeyGenParameterSpec(2048, RSAKeyGenParameterSpec.F4))
-                        .setUserAuthenticationRequired(true)
-                        .setUserAuthenticationValidityDurationSeconds(1000)
-                        .build();
-                keyPairGenerator.initialize(keyGenParameterSpec);
+                        .setUserAuthenticationRequired(false);
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+//                            keyGenParameterSpecBuilder
+//                            .setUserAuthenticationParameters(100, KeyProperties.AUTH_DEVICE_CREDENTIAL
+//                                    | KeyProperties.AUTH_BIOMETRIC_STRONG);
+                } else {
+//                    keyGenParameterSpecBuilder.setUserAuthenticationValidityDurationSeconds(100);
+                }
+                keyPairGenerator.initialize(keyGenParameterSpecBuilder.build());
 
                 KeyPair keyPair = keyPairGenerator.generateKeyPair();
                 PublicKey publicKey = keyPair.getPublic();
@@ -148,30 +153,18 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                         @Override
                         public void run() {
                             try {
-                                String cancelButtomText = params.getString("cancelButtonText");
                                 String promptMessage = params.getString("promptMessage");
                                 String payload = params.getString("payload");
-
-                                Signature signature = Signature.getInstance("SHA256withRSA");
-                                KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
-                                keyStore.load(null);
-
-                                PrivateKey privateKey = (PrivateKey) keyStore.getKey(biometricKeyAlias, null);
-                                signature.initSign(privateKey);
-
-                                BiometricPrompt.CryptoObject cryptoObject = new BiometricPrompt.CryptoObject(signature);
 
                                 AuthenticationCallback authCallback = new CreateSignatureCallback(promise, payload);
                                 FragmentActivity fragmentActivity = (FragmentActivity) getCurrentActivity();
                                 Executor executor = Executors.newSingleThreadExecutor();
                                 BiometricPrompt biometricPrompt = new BiometricPrompt(fragmentActivity, executor, authCallback);
-
-                                PromptInfo promptInfo = new PromptInfo.Builder()
-                                        .setDeviceCredentialAllowed(false)
-                                        .setNegativeButtonText(cancelButtomText)
+                                PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
                                         .setTitle(promptMessage)
+                                        .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
                                         .build();
-                                biometricPrompt.authenticate(promptInfo, cryptoObject);
+                                biometricPrompt.authenticate(promptInfo);
                             } catch (Exception e) {
                                 promise.reject("Error signing payload: " + e.getMessage(), "Error generating signature: " + e.getMessage());
                             }

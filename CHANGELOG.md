@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [2.1.5] - 2022-01-28
+## Changed
+- Le hicimos unos fixes para que funcione en android
+- 
 ## [2.1.4] - 2020-02-10
 ## Changed
 - Removed duplicate onAuthenticationError call in android

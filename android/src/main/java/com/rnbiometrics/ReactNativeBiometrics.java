@@ -100,13 +100,6 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                         .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
                         .setAlgorithmParameterSpec(new RSAKeyGenParameterSpec(2048, RSAKeyGenParameterSpec.F4))
                         .setUserAuthenticationRequired(false);
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-//                            keyGenParameterSpecBuilder
-//                            .setUserAuthenticationParameters(100, KeyProperties.AUTH_DEVICE_CREDENTIAL
-//                                    | KeyProperties.AUTH_BIOMETRIC_STRONG);
-                } else {
-//                    keyGenParameterSpecBuilder.setUserAuthenticationValidityDurationSeconds(100);
-                }
                 keyPairGenerator.initialize(keyGenParameterSpecBuilder.build());
 
                 KeyPair keyPair = keyPairGenerator.generateKeyPair();
@@ -147,12 +140,15 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void createSignature(final ReadableMap params, final Promise promise) {
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             UiThreadUtil.runOnUiThread(
                     new Runnable() {
                         @Override
                         public void run() {
                             try {
+                                String cancelButtomText = params.getString("cancelButtonText");
+
                                 String promptMessage = params.getString("promptMessage");
                                 String payload = params.getString("payload");
 
@@ -160,11 +156,15 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                                 FragmentActivity fragmentActivity = (FragmentActivity) getCurrentActivity();
                                 Executor executor = Executors.newSingleThreadExecutor();
                                 BiometricPrompt biometricPrompt = new BiometricPrompt(fragmentActivity, executor, authCallback);
-                                PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-                                        .setTitle(promptMessage)
-                                        .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-                                        .build();
-                                biometricPrompt.authenticate(promptInfo);
+                                PromptInfo.Builder promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                                        .setTitle(promptMessage);
+                                if(Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+                                    promptInfo.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL);
+                                } else {
+                                    promptInfo.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK | BiometricManager.Authenticators.DEVICE_CREDENTIAL);
+
+                                }
+                                biometricPrompt.authenticate(promptInfo.build());
                             } catch (Exception e) {
                                 promise.reject("Error signing payload: " + e.getMessage(), "Error generating signature: " + e.getMessage());
                             }
